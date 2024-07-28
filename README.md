@@ -32,8 +32,14 @@ samples of generated images
     pip install -r requirements.txt
     ```
 - ```
-    python main.py 
-    ```
+- ```
+    python main.py [options]
+- ```
+
+- -o <output_dir>: Specify the output directory. Default is ./output/.
+- -n <number>: Specify the number of iterations. Default is 100.
+
+Note: Both -o and -n are optional. If not specified, the defaults are ./output/ for -o and 100 for -n.
 
 ## Chars and Numbers
 
@@ -52,5 +58,4 @@ samples of generated images
 | ق | Q | <img src="./resized_chars/Q.png" width="50%" height="50%" style="background-color: white;"> | ن | N | <img src="./resized_chars/N.png" width="50%" height="50%" style="background-color: white;"> 
 | م | M | <img src="./resized_chars/M.png" width="50%" height="50%" style="background-color: white;"> |و | V | <img src="./resized_chars/V.png" width="50%" height="50%" style="background-color: white;"> |
 | ی | Y | <img src="./resized_chars/Y.png" width="50%" height="50%" style="background-color: white;"> | ه | H | <img src="./resized_chars/H.png" width="50%" height="50%" style="background-color: white;"> |
-
 

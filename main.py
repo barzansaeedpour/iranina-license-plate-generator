@@ -1,118 +1,76 @@
-from PIL import Image
-from remove_background import remove_background
-# from remove_background import remove_background_HE
+import argparse
+import json
 import os
 import random
-import json
+from typing import List
 
-os.makedirs('./output/',exist_ok=True)
+from PIL import Image
 
+from utils import create_overlay, get_background, remove_background
 
-with open('config.json', 'r') as file:
-    data = json.load(file)
-    
+# get input args for output directory and number of images
+parser = argparse.ArgumentParser(description="Iranina license plate generator")
+parser.add_argument('-o', '--output_dir', type=str, help='Path to the output directory', default='./output/')
+parser.add_argument('-n', '--num_samples', type=int, help='Number of samples to process', default=100)
+
+args = parser.parse_args()
+output_dir = args.output_dir
+num_samples = args.num_samples
+
+# Create the output directory if it doesn't exist
+if not os.path.exists(output_dir):
+	os.makedirs(output_dir)
+
+# Load JSON data from a file
+with open('number_char_config.json', 'r') as file:
+	data = json.load(file)
+
+chars = data['chars']
 numbers = data['numbers']
 mini_numbers = data['mini_numbers']
-chars = data['chars']
 
-for i in range(2):
-    # Open the background image
+def choose_random_items(items: List, count: int) -> list:
+	# Remove the first item if it is 0
+	if items == mini_numbers:
+		non_zero_mini_numbers = [item for item in mini_numbers if item["ch"] != '0']
+		first_mini_number = random.choice(non_zero_mini_numbers)
+		return [first_mini_number] + random.sample(items, count-1)
+	
+	return random.sample(items, count)
 
-    # Make a random choice from the list
-    random_1 = random.choice(numbers)
-    random_2 = random.choice(numbers)
+def main() -> None:
 
-    random_char = random.choice(chars)
-
-    random_3 = random.choice(numbers)
-    random_4 = random.choice(numbers)
-    random_5 = random.choice(numbers)
-
-    mini_random_1 = random.choice(mini_numbers)
-    while mini_random_1["ch"]=='0':
-        mini_random_1 = random.choice(mini_numbers)
-    mini_random_2 = random.choice(mini_numbers)
-
-    plate_text =  random_1['ch'] + random_2['ch']+ '-' +random_char['ch']+ '-' + random_3['ch'] + random_4['ch'] + random_5['ch']+ '-' + mini_random_1['ch'] + mini_random_2['ch']
-
-    char_color = 'black'
+	for i in range(num_samples):
+		# generate random license plate items containing numbers, characters, and mini numbers
+		random_char = choose_random_items(chars, count=1)[0]
+		random_numbers = choose_random_items(numbers, count=6)
+		mini_random_numbers = choose_random_items(mini_numbers, count=2)
+        
+		# create license plate items
+		license_plate_items = [
+			{"ch": random_numbers[0]['ch'], "size": random_numbers[0]['size'], "position": [100, random_numbers[0]['position'][1]]},
+			{"ch": random_numbers[1]['ch'], "size": random_numbers[1]['size'], "position": [180, random_numbers[1]['position'][1]]},
+			{"ch": random_char['ch'], "size": random_char['size'], "position": random_char['position']},
+			{"ch": random_numbers[2]['ch'], "size": random_numbers[2]['size'], "position": [390, random_numbers[2]['position'][1]]},
+			{"ch": random_numbers[3]['ch'], "size": random_numbers[3]['size'], "position": [470, random_numbers[3]['position'][1]]},
+			{"ch": random_numbers[4]['ch'], "size": random_numbers[4]['size'], "position": [550, random_numbers[4]['position'][1]]},
+			{"ch": mini_random_numbers[0]['ch'], "size": mini_random_numbers[0]['size'], "position": [655, mini_random_numbers[0]['position'][1]]},
+			{"ch": mini_random_numbers[1]['ch'], "size": mini_random_numbers[1]['size'], "position": [720, mini_random_numbers[1]['position'][1]]}
+		]
     
-    if random_char['ch']=='T' or random_char['ch'] == 'EIN':
-        background = Image.open("templates/taxi.png")
-    elif random_char['ch']=='P':
-        background = Image.open("templates/police.png")
-        char_color = 'white'
-    else:
-        background = Image.open("templates/savari.png")
-    new_image = Image.new("RGBA", background.size)
-    
-    # if random_char['ch']=='HE':
-    #     overlaych = remove_background_HE(Image.open(f"./chars/{random_char['ch']}.png"))
-    #     # overlaych = remove_background(Image.open(f"./chars/{random_char['ch']}.png"))
-    # else:     
-       
-    overlaych = remove_background(Image.open(f"./chars/{random_char['ch']}.png"),char_color = char_color)
-    # overlaych.save(f"./resized_chars/{random_char['ch']}.png")
+		license_plate_text = ''.join([item['ch'] for item in license_plate_items])
 
-    
-    overlay1 = remove_background(Image.open(f"./chars/{random_1['ch']}.png"),char_color = char_color)
-    overlay1 = overlay1.resize(random_1['size'])
-    # overlay1.save(f"./resized_chars/{random_1['ch']}.png") 
-    new_image.paste(overlay1, [100, random_1['position'][1]])
-    final_image = Image.alpha_composite(background.convert("RGBA"), new_image)
+		background, char_color = get_background(random_char)
+		new_image = Image.new("RGBA", background.size)
 
-    overlay2 = remove_background(Image.open(f"./chars/{random_2['ch']}.png"),char_color = char_color)
-    overlay2 = overlay2.resize(random_2['size'])
-    # overlay2.save(f"./resized_chars/{random_2['ch']}.png") 
-    new_image.paste(overlay2, [180, random_2['position'][1]])
-    final_image = Image.alpha_composite(final_image.convert("RGBA"), new_image)
+		# build license plate image
+		for item in license_plate_items:
+			image_path = f"./chars/{item['ch']}.png"
+			new_image = create_overlay(image_path, char_color = char_color, size = item['size'], position = item['position'], new_image = new_image)
+			final_image = Image.alpha_composite(background.convert("RGBA"), new_image)
 
+		# Save the final image
+		final_image.save(f"{output_dir}/{i}_{license_plate_text}.png")
 
-    position = random_char['position']  # Specify the coordinates (x, y)
-    overlaych = overlaych.resize(random_char['size'])
-    # overlaych.save(f"./resized_chars/{random_char['ch']}.png") 
-    new_image.paste(overlaych, position)
-    final_image = Image.alpha_composite(final_image.convert("RGBA"), new_image)
-
-    overlay3 = remove_background(Image.open(f"./chars/{random_3['ch']}.png"), char_color = char_color)
-    overlay3 = overlay3.resize(random_3['size'])
-    # overlay3.save(f"./resized_chars/{random_3['ch']}.png")
-    new_image.paste(overlay3, [390, random_3['position'][1]])
-    final_image = Image.alpha_composite(final_image.convert("RGBA"), new_image)
- 
-    # background.paste(overlay3, [390, random_3['position'][1]])
-
-    overlay4 = remove_background(Image.open(f"./chars/{random_4['ch']}.png"), char_color = char_color)
-    overlay4 = overlay4.resize(random_4['size'])
-    # overlay4.save(f"./resized_chars/{random_4['ch']}.png") 
-    new_image.paste(overlay4, [470, random_4['position'][1]])
-    final_image = Image.alpha_composite(final_image.convert("RGBA"), new_image)
-    # background.paste(overlay4, [470, random_4['position'][1]])
-
-    overlay5 = remove_background(Image.open(f"./chars/{random_5['ch']}.png"), char_color = char_color)
-    overlay5 = overlay5.resize(random_5['size'])
-    # overlay5.save(f"./resized_chars/{random_5['ch']}.png") 
-    new_image.paste(overlay5, [550, random_5['position'][1]])
-    final_image = Image.alpha_composite(final_image.convert("RGBA"), new_image)
-    # background.paste(overlay5, [550, random_5['position'][1]])
-
-    overlay6 = remove_background(Image.open(f"./chars/{mini_random_1['ch']}.png"), char_color = char_color)
-    overlay6 = overlay6.resize(mini_random_1['size'])
-    # overlay6.save(f"./resized_chars/{mini_random_1['ch']}.png")
-    new_image.paste(overlay6, [655, mini_random_1['position'][1]])
-    final_image = Image.alpha_composite(final_image.convert("RGBA"), new_image) 
-    # background.paste(overlay6, [655, mini_random_1['position'][1]])
-
-    overlay7 = remove_background(Image.open(f"./chars/{mini_random_2['ch']}.png"), char_color = char_color)
-    overlay7 = overlay7.resize(mini_random_2['size'])
-    # overlay7.save(f"./resized_chars/{mini_random_2['ch']}.png")
-    new_image.paste(overlay7, [720, mini_random_2['position'][1]])
-    final_image = Image.alpha_composite(final_image.convert("RGBA"), new_image) 
-    # background.paste(overlay7, [720, mini_random_2['position'][1]])
-
-
-
-    # Save the final image with the overlay
-    # with open(f"output/output_image_{i}.txt",'w') as f:
-    #     f.write(plate_text)
-    final_image.save(f"output/{i}_{plate_text}.png")
+if __name__ == "__main__":
+	main()
